@@ -1,11 +1,9 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
+#include <ESP8266WiFiClient.h>
 #include "Timer.h"
-#include <ESP8266WiFiMulti.h>
+#include <ESP8266WiFiClientMulti.h>
 
-static ESP8266WiFiMulti wifiMulti;
-static WiFiClient client;
-
+ESP8266WiFiClientMulti wifiMulti;
 
 #define HTTP_QUERY_SIZE 1400
 
@@ -34,10 +32,11 @@ void setup() {
   Serial.println();
 
   // Connect to Wifi network
-  client.begin(ssid,pw);
+  WiFiClient.begin(ssid,pw);
+
 
   // Print the network that the chip is connected to
-  Serial.println(client.localIP());
+  Serial.println(WiFiClient.localIP());
 
   numberOfCity = sizeof(cityNames) / sizeof(char*);
   
@@ -45,9 +44,11 @@ void setup() {
 
 void loop() {  
   // while there's is a request from arduino, fetch
+  
   while (Serial.read() == 1) {
     apiLoop();
     httpLoop();
+  }
 }
 
 void apiLoop()
@@ -62,23 +63,25 @@ void apiLoop()
     
   httpResponse = "";
   
-  // Use object of WiFi client class to create TCP connections
-  if(client.connect(server, 80))
+  // Use object of WiFiClient WiFiClient class to create TCP connections
+  if(WiFiClient.connect(server, 80))
   {
     isRunning = true;
-    client.write(httpQuery, queryLength);
+    WiFiClient.write(httpQuery, queryLength);
   
   }
 }
 
 char buf[1024];
+uint8_t buf_int = (uint8_t)atoi(buf);
+
 String f = "\r\n\r\n";
 void httpLoop()
 {
   if(isRunning)  
   {
     // Count the amount of data availble for reading
-    uint16_t cnt = client.available();
+    uint16_t cnt = WiFiClient.available();
 
     if(cnt > 0)
     {
@@ -89,8 +92,8 @@ void httpLoop()
       memset(buf, 0, 1024);
 
       // Store read bytes in recv
-      uint16_t recv = client.read(buf, tryRead);
-      
+      //uint16_t recv = WiFiClient.read(buf_int, tryRead);
+      String recv = WiFiClient.readStringUntil('\r');
       httpResponse = httpResponse + buf;      
 
       Serial.println("Received");
@@ -101,7 +104,7 @@ void httpLoop()
         httpResponse = httpResponse.substring(idx + 4);
     }
     
-    if(!client.connected())
+    if(!WiFiClient.connected())
     {
       isRunning = false;
       Serial.println("Client not connected");
