@@ -15,7 +15,6 @@ const char* pw = "";
 
 uint8_t httpQuery[HTTP_QUERY_SIZE];
 
-int BUTTON_GPIO = 3;
 
 char *server = "api.openweathermap.org";
 char *apiKey = "5d7171bef3c4d2055fcff9885bb2cf66";
