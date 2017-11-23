@@ -1,9 +1,9 @@
 #include <Arduino.h>
-#include <ESP8266WiFiClient.h>
+#include <ESP8266WiFi.h>
 #include "Timer.h"
-#include <ESP8266WiFiClientMulti.h>
+#include <ESP8266WiFiMulti.h>
 
-ESP8266WiFiClientMulti wifiMulti;
+ESP8266WiFiMulti wifiMulti;
 
 #define HTTP_QUERY_SIZE 1400
 
@@ -13,6 +13,7 @@ const char* pw = "";
 
 uint8_t httpQuery[HTTP_QUERY_SIZE];
 
+static WiFiClient client;
 
 char *server = "api.openweathermap.org";
 char *apiKey = "5d7171bef3c4d2055fcff9885bb2cf66";
@@ -32,11 +33,11 @@ void setup() {
   Serial.println();
 
   // Connect to Wifi network
-  WiFiClient.begin(ssid,pw);
+  WiFi.begin(ssid,pw);
 
 
   // Print the network that the chip is connected to
-  Serial.println(WiFiClient.localIP());
+  Serial.println(WiFi.localIP());
 
   numberOfCity = sizeof(cityNames) / sizeof(char*);
   
@@ -44,15 +45,20 @@ void setup() {
 
 void loop() {  
   // while there's is a request from arduino, fetch
-  
+  /*
   while (Serial.read() == 1) {
     apiLoop();
     httpLoop();
   }
+  */
+  apiLoop();
+  httpLoop();
+  delay(10000);
 }
 
 void apiLoop()
 {
+
   static int index = 0;
 
   queryLength = getQueryCurrentWeather(httpQuery, cityNames[index++],
@@ -64,10 +70,10 @@ void apiLoop()
   httpResponse = "";
   
   // Use object of WiFiClient WiFiClient class to create TCP connections
-  if(WiFiClient.connect(server, 80))
+  if(client.connect(server, 80))
   {
     isRunning = true;
-    WiFiClient.write(httpQuery, queryLength);
+    client.print((char *) httpQuery);
   
   }
 }
@@ -81,7 +87,7 @@ void httpLoop()
   if(isRunning)  
   {
     // Count the amount of data availble for reading
-    uint16_t cnt = WiFiClient.available();
+    uint16_t cnt = client.available();
 
     if(cnt > 0)
     {
@@ -93,7 +99,7 @@ void httpLoop()
 
       // Store read bytes in recv
       //uint16_t recv = WiFiClient.read(buf_int, tryRead);
-      String recv = WiFiClient.readStringUntil('\r');
+      String recv = client.readStringUntil('\r');
       httpResponse = httpResponse + buf;      
 
       Serial.println("Received");
@@ -104,7 +110,7 @@ void httpLoop()
         httpResponse = httpResponse.substring(idx + 4);
     }
     
-    if(!WiFiClient.connected())
+    if(!client.connected())
     {
       isRunning = false;
       Serial.println("Client not connected");
