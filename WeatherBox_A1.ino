@@ -1,12 +1,17 @@
+#include <SoftwareSerial.h>
+
 #include <ArduinoJson.h>
 #include "Controller.cpp"
 #include "Lights.cpp"
 
+#define sizeOfBuf 512
+
 unsigned long timeoutOver;
 unsigned long lastFetch;
 unsigned long lastActuation;
-unsigned long fetchTime_ms = 900000; //15 min = 900,000 mSec
+unsigned long fetchTime_ms = 5000;//900000; //15 min = 900,000 mSec
 unsigned long actuationTime_ms = 15000; //15 sec = 15,000 mSec
+
 
 int lastWeatherCode;
 
@@ -15,28 +20,33 @@ Controller controller;
 Lights lights;
 
 //Set Up ESP 
-char espBuf[1024];  //buffer for new Rx from ESP chip
+char espBuf[sizeOfBuf];  //buffer for new Rx from ESP chip
 DynamicJsonBuffer jsonBuffer;
+SoftwareSerial ss(10,11);
 
 void setup() 
 { 
+  pinMode(13, OUTPUT);    //our debug/error pin
   lastWeatherCode = 800;  //clear weather
   
   //Init Serial Port for communication to ESP chip
   Serial.begin(115200);
+  ss.begin(9600);
+  ss.println("Software Serial init");
   
   //Turn off all actuators
   controller.allOff();
   lights.off();
 
-  if(sendESPCmd(1))
-  {
-    //Parse JSON & Set Weather
-    if(parseESPJson() != 1)
-    {  
-      //Error
-    }
-  }
+  for(int i = 0; i < 5; i++)
+        {
+          digitalWrite(13, HIGH);
+          delay(200);
+          digitalWrite(13, LOW);
+          delay(100);
+        }
+    //do first case manually
+    doESPStuff(1);
 
   //**Now we can actually begin normal operation**
 
@@ -53,34 +63,69 @@ void loop()
     setWeather(String(lastWeatherCode));
     lastActuation = millis();
   }
+  
   //check if time to fetch new JSON
   if(millis() - lastFetch >= fetchTime_ms)
   {
-    if(sendESPCmd(1))
-    {
-      //Parse JSON & Set Weather
-      if(parseESPJson() != 1)
-      {  
-        //Error
-      }
-    }
-    
+    //1 is the command to get the latest JSON
+    doESPStuff(1);
     lastFetch = millis();
   }
 }
+
+
+void doESPStuff(int _cmd)
+{
+    int ret1 = sendESPCmd(_cmd);
+    if(!ret1)  //want this to return 0
+    {
+      
+      //Parse JSON & Set Weather
+      int ret2 = parseESPJson();
+      if(ret2 != 0) //want this to return 0
+      {  
+        //Error -- could not parse resp -- flash onboard LED depending on error
+        for(int i = 0; i < ret2*4; i++)
+        {
+          digitalWrite(13, HIGH);
+          delay(100);
+          digitalWrite(13, LOW);
+          delay(100);
+        }
+      }
+      
+    }
+    else
+    {
+      //Error -- could not send command -- flash onboard LED 
+      for(int i = 0; i < ret1*3; i++)
+      {
+        digitalWrite(13, HIGH);
+        delay(100);
+        digitalWrite(13, LOW);
+        delay(100);
+      }
+    }
+}
+
+
 
 int sendESPCmd(int _cmd)
 {
   int count = 0;
   
   //Reset ESP Rx buffer
-  memset(espBuf, 0, 1024);
+  memset(espBuf, 0, sizeOfBuf);
 
   //cmd 1 = fetch JSON
-  Serial.write(_cmd);  //Send ESP chip a command to req from OpenWeatherAPI
+  Serial.print(_cmd);  //Send ESP chip a command to req from OpenWeatherAPI
 
-  delay(100); //Wait for ESP to process?
-
+  //delay(2500); //Wait for ESP to process?
+  while(!Serial.available())
+  {
+    
+  }
+  
   if(Serial.available())
   {
     do
@@ -93,14 +138,23 @@ int sendESPCmd(int _cmd)
       }
     }
     while(millis()<timeoutOver);
-    espBuf[count] = '\0'; //Signifies end
+    //espBuf[count] = '\0'; //Signifies end
+    
+    ss.print("\nGot ");
+    ss.print(count);
+    ss.println(" bytes");
+    for(int i = 0; i < count; i++)
+    {
+      ss.print(espBuf[i]);
+    }
+    ss.println("\n");
   }
   else
   {
-    return 0;
+    ss.println("Serial not available");
+    return 1; 
   }
-
-  return 1;
+  return 0; //success
 }
 
 int parseESPJson()
@@ -109,7 +163,8 @@ int parseESPJson()
 
   if(!root.success())
   {
-    return 0; //error
+    ss.println("Error 1 in parseESPJson");
+    return 1; //error -- JsonObject class could not parse object
   }
 
   if(root["cod"] == 200)
@@ -120,17 +175,21 @@ int parseESPJson()
 
     if(setWeather(weatherId))
     {
+      ss.print("Successfully set weather to: ");
+      ss.println(weatherId);
       //success
-      return 1;
+      return 0;
     }
     else
     {
-      return -2;
+      ss.println("Error 2 in parseESPJson");
+      return 2; //error 
     }
   }
   else
   {
-    return -1;
+    ss.println("Error 3 in parseESPJson");
+    return 3; //error -- wrong internal parameter
   }
 }
 
