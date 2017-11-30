@@ -1,0 +1,95 @@
+/*
+ *  This sketch sends data via HTTP GET requests to data.sparkfun.com service.
+ *
+ *  You need to get streamId and privateKey at data.sparkfun.com and paste them
+ *  below. Or just customize this script to talk to other HTTP servers.
+ *
+ */
+
+#include <ESP8266WiFi.h>
+
+//extern "C" {
+//  #include "user_interface.h"
+//  #include "wpa2_enterprise.h"
+//}
+//
+//// SSID to connect to
+//static const char* ssid = "UCSD-PROTECTED";
+//// Username for authentification
+//static const char* username = "stronbol";
+//// Password for authentification
+//static const char* password = "nA%3Riv34";
+
+const char* ssid     = "AndroidAP";
+const char* password = "";
+
+const char* host = "api.openweathermap.org";
+String url = "/data/2.5/weather?q=London,uk&appid=5d7171bef3c4d2055fcff9885bb2cf66";
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  delay(3000);
+
+  // We start by connecting to a WiFi network
+
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  
+  WiFi.begin(ssid, password);
+//  connect();
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.println(WiFi.status());
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");  
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+int value = 0;
+
+void loop() {
+  if (Serial.read() == '1') {
+    makeRequest();
+    readResponse();
+  }
+}
+
+void makeRequest() {
+  // Use WiFiClient class to create TCP connections
+  const int httpPort = 80;
+  if (!client.connect(host, httpPort)) {
+    Serial.println("connection failed");
+    return;
+  }
+    
+  // This will send the request to the server
+  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n" + 
+               "Connection: close\r\n\r\n");
+  unsigned long timeout = millis();
+  while (client.available() == 0) {
+    if (millis() - timeout > 5000) {
+      Serial.println(">>> Client Timeout !");
+      client.stop();
+      return;
+    }
+  }
+}
+
+void readResponse() {
+  // Read all the lines of the reply from server and print them to Serial
+  while(client.available()){
+    String line = client.readStringUntil('\r');
+    if (line[1] == '{' && line[2] == '"') {
+      Serial.println(line);
+    }
+  }
+}
