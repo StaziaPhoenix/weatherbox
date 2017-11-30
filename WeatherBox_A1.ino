@@ -21,8 +21,8 @@ Lights lights;
 
 //Set Up ESP 
 char espBuf[sizeOfBuf];  //buffer for new Rx from ESP chip
-DynamicJsonBuffer jsonBuffer;
-SoftwareSerial ss(10,11);
+StaticJsonBuffer<sizeOfBuf> jsonBuffer;
+
 
 void setup() 
 { 
@@ -31,8 +31,6 @@ void setup()
   
   //Init Serial Port for communication to ESP chip
   Serial.begin(115200);
-  ss.begin(9600);
-  ss.println("Software Serial init");
   
   //Turn off all actuators
   controller.allOff();
@@ -46,7 +44,8 @@ void setup()
           delay(100);
         }
     //do first case manually
-    doESPStuff(1);
+//    doESPStuff(1);
+    doESPStuff('$');
 
   //**Now we can actually begin normal operation**
 
@@ -61,6 +60,7 @@ void loop()
   if(millis() - lastActuation >= actuationTime_ms)
   {
     setWeather(String(lastWeatherCode));
+    Serial.println("^Used old data");
     lastActuation = millis();
   }
   
@@ -68,13 +68,14 @@ void loop()
   if(millis() - lastFetch >= fetchTime_ms)
   {
     //1 is the command to get the latest JSON
-    doESPStuff(1);
+    //doESPStuff(1);
+    doESPStuff('$');
     lastFetch = millis();
   }
 }
 
-
-void doESPStuff(int _cmd)
+void doESPStuff(char _cmd)
+//void doESPStuff(int _cmd)
 {
     int ret1 = sendESPCmd(_cmd);
     if(!ret1)  //want this to return 0
@@ -110,17 +111,18 @@ void doESPStuff(int _cmd)
 
 
 
-int sendESPCmd(int _cmd)
+//int sendESPCmd(int _cmd)
+int sendESPCmd(char _cmd)
 {
   int count = 0;
   
   //Reset ESP Rx buffer
   memset(espBuf, 0, sizeOfBuf);
-
+  jsonBuffer.clear();
+ 
   //cmd 1 = fetch JSON
   Serial.print(_cmd);  //Send ESP chip a command to req from OpenWeatherAPI
 
-  //delay(2500); //Wait for ESP to process?
   while(!Serial.available())
   {
     
@@ -133,25 +135,33 @@ int sendESPCmd(int _cmd)
       while(Serial.available())
       {  
         espBuf[count] = Serial.read();
-        timeoutOver = millis()+10; //allow 10mSec before timeout/EOT
+        timeoutOver = millis()+200; //allow 200mSec before timeout/EOT
         count++;
       }
     }
     while(millis()<timeoutOver);
     //espBuf[count] = '\0'; //Signifies end
     
-    ss.print("\nGot ");
-    ss.print(count);
-    ss.println(" bytes");
+    Serial.print("\nGot ");
+    Serial.print(count);
+    Serial.println(" bytes");
     for(int i = 0; i < count; i++)
     {
-      ss.print(espBuf[i]);
+      if(espBuf[i] == '$')
+      {
+        Serial.print("!");
+      }
+      else
+      {
+        Serial.print(espBuf[i]);
+      }
+      
     }
-    ss.println("\n");
+    Serial.println("\n");
   }
   else
   {
-    ss.println("Serial not available");
+    Serial.println("Serial not available");
     return 1; 
   }
   return 0; //success
@@ -163,7 +173,7 @@ int parseESPJson()
 
   if(!root.success())
   {
-    ss.println("Error 1 in parseESPJson");
+    Serial.println("Error 1 in parseESPJson");
     return 1; //error -- JsonObject class could not parse object
   }
 
@@ -171,24 +181,22 @@ int parseESPJson()
   {
     //For OpenWeatherAPI, the "cod" internal parameter should be 200 
     JsonObject& weather = root["weather"][0];
-    String weatherId = weather["id"]; 
+    String weatherId = weather["id"];
 
     if(setWeather(weatherId))
     {
-      ss.print("Successfully set weather to: ");
-      ss.println(weatherId);
       //success
       return 0;
     }
     else
     {
-      ss.println("Error 2 in parseESPJson");
+      Serial.println("Error 2 in parseESPJson");
       return 2; //error 
     }
   }
   else
   {
-    ss.println("Error 3 in parseESPJson");
+    Serial.println("Error 3 in parseESPJson");
     return 3; //error -- wrong internal parameter
   }
 }
@@ -227,6 +235,16 @@ int setWeather(String _wthrID)
     }
     
   }
+  else if(weather > 800 && weather < 900)
+  {
+    //clouds
+    lowFog();
+  }
+  else if(weather >= 900 && weather < 1000)
+  {
+    //extreme weather
+    storm(10);
+  }
   else if(weather == 800)
   {
       //clear
@@ -237,6 +255,9 @@ int setWeather(String _wthrID)
     //unknown weather ID -- error
     return 0;
   }
+  
+  Serial.print("Successfully set weather to: ");
+  Serial.println(weather);
   return 1; //success
 }
 
