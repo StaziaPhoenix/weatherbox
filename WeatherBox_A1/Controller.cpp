@@ -13,7 +13,7 @@ class Controller {
     Controller () {}
   
     void pumpOn() {
-      analogWrite(pump, 200);
+      analogWrite(pump, 255);
     }
     
     void pumpOff() {

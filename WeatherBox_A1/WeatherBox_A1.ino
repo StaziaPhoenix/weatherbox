@@ -1,4 +1,3 @@
-#include <SoftwareSerial.h>
 
 #include <ArduinoJson.h>
 #include "Controller.cpp"
@@ -6,14 +5,15 @@
 
 #define sizeOfBuf 512
 
-unsigned long timeoutOver;
-unsigned long lastFetch;
-unsigned long lastActuation;
-unsigned long fetchTime_ms = 5000;//900000; //15 min = 900,000 mSec
-unsigned long actuationTime_ms = 15000; //15 sec = 15,000 mSec
+unsigned int timeoutOver;
+unsigned int lastFetch;
+unsigned int lastActuation;
+#define fetchTime_ms 5000
+//unsigned int fetchTime_ms = 5000;//900000; //15 min = 900,000 mSec
+#define actuationTime_ms 15000
+//unsigned int actuationTime_ms = 15000; //15 sec = 15,000 mSec
 
-
-int lastWeatherCode;
+short lastWeatherCode;
 
 //Set Up Actuation
 Controller controller;
@@ -36,13 +36,13 @@ void setup()
   controller.allOff();
   lights.off();
 
-  for(int i = 0; i < 5; i++)
-        {
-          digitalWrite(13, HIGH);
-          delay(200);
-          digitalWrite(13, LOW);
-          delay(100);
-        }
+//  for(int i = 0; i < 5; i++)
+//        {
+//          digitalWrite(13, HIGH);
+//          delay(200);
+//          digitalWrite(13, LOW);
+//          delay(100);
+//        }
     //do first case manually
 //    doESPStuff(1);
     doESPStuff('$');
@@ -52,26 +52,28 @@ void setup()
   //Start System Time
   lastFetch = millis();
   lastActuation = millis();
+  delay(1000);
 }
 
 void loop() 
 {
-  //check if time to actuate current JSON
-  if(millis() - lastActuation >= actuationTime_ms)
-  {
-    setWeather(String(lastWeatherCode));
-    Serial.println("^Used old data");
-    lastActuation = millis();
-  }
-  
-  //check if time to fetch new JSON
-  if(millis() - lastFetch >= fetchTime_ms)
-  {
-    //1 is the command to get the latest JSON
-    //doESPStuff(1);
-    doESPStuff('$');
-    lastFetch = millis();
-  }
+//  //check if time to actuate current JSON
+//  if(millis() - lastActuation >= actuationTime_ms)
+//  {
+//    setWeather(String(lastWeatherCode));
+////    Serial.println("^Used old data");
+//    lastActuation = millis();
+//  }
+//  
+//  //check if time to fetch new JSON
+//  if(millis() - lastFetch >= fetchTime_ms)
+//  {
+//    //1 is the command to get the latest JSON
+//    //doESPStuff(1);
+//    doESPStuff('$');
+//    lastFetch = millis();
+//  }
+  demonstration();
 }
 
 void doESPStuff(char _cmd)
@@ -86,27 +88,27 @@ void doESPStuff(char _cmd)
       if(ret2 != 0) //want this to return 0
       {  
         //Error -- could not parse resp -- flash onboard LED depending on error
-        for(int i = 0; i < ret2*4; i++)
-        {
-          digitalWrite(13, HIGH);
-          delay(100);
-          digitalWrite(13, LOW);
-          delay(100);
-        }
+//        for(int i = 0; i < ret2*4; i++)
+//        {
+//          digitalWrite(13, HIGH);
+//          delay(100);
+//          digitalWrite(13, LOW);
+//          delay(100);
+//        }
       }
       
     }
-    else
-    {
-      //Error -- could not send command -- flash onboard LED 
-      for(int i = 0; i < ret1*3; i++)
-      {
-        digitalWrite(13, HIGH);
-        delay(100);
-        digitalWrite(13, LOW);
-        delay(100);
-      }
-    }
+//    else
+//    {
+//      //Error -- could not send command -- flash onboard LED 
+//      for(int i = 0; i < ret1*3; i++)
+//      {
+//        digitalWrite(13, HIGH);
+//        delay(100);
+//        digitalWrite(13, LOW);
+//        delay(100);
+//      }
+//    }
 }
 
 
@@ -128,13 +130,15 @@ int sendESPCmd(char _cmd)
     
   }
   
-  if(Serial.available())
+//  if(Serial.available())
+  if(1)
   {
     do
     {
-      while(Serial.available())
+      while(Serial.available() > 0)
       {  
         espBuf[count] = Serial.read();
+//        Serial.print(espBuf[count]);
         timeoutOver = millis()+200; //allow 200mSec before timeout/EOT
         count++;
       }
@@ -311,13 +315,23 @@ void rain(int redV, int greenV, int blueV) {
 
 
 /* LOW FOG */
+void lowFog(int _time, int redV, int greenV, int blueV) {
+  controller.misterOn();
+  lights.on(redV, greenV, blueV);
+
+  for (int i = 0; i < _time/200; i = i + 200) {
+    controller.fanOn();
+    delay(200);
+    controller.fanOff();
+  }
+  
+}
+
 void lowFog() {
   controller.misterOn();
-
   controller.fanOn();
   delay(200);
   controller.fanOff();
-  
 }
 
 void lowFog(int redV, int greenV, int blueV) {
@@ -338,3 +352,54 @@ void highFog(int redV, int greenV, int blueV) {
   lights.on(redV, greenV, blueV);
 }
 
+void demonstration() {
+
+  // Lights
+//  byte rate = 50;
+//  lights.fadeInto(255,0,0,rate); // red
+////  lights.fadeInto(255,140,0,rate); // orange
+////  lights.fadeInto(255,255,0,rate); // yellow
+//  lights.fadeInto(0,255,0,rate); // green
+//  lights.fadeInto(0,0,255,rate); // blue
+////  lights.fadeInto(75,0,130,rate); // indigo
+////  lights.fadeInto(238,130,238,rate); // violet
+////  lights.fadeInto(199,21,133,rate); // pink
+//
+//  lights.set(255,0,0); // red
+//  delay(rate);
+//  lights.set(255,140,0); // orange
+//  delay(rate);
+//  lights.set(255,255,0); // yellow
+//  delay(rate);
+//  lights.set(0,255,0); // green
+//  delay(rate);
+//  lights.set(0,0,255); // blue
+//  delay(rate);
+//  lights.set(75,0,130); // indigo
+//  delay(rate);
+//  lights.set(238,130,238); // violet
+//  delay(rate);
+//  lights.set(199,21,133); // pink
+//  delay(rate);
+
+//  lights.off();
+  delay(1000);
+  
+  // Mister
+  lowFog(5000, 255, 255, 255);
+
+  // Mister and Fan
+  highFog(255, 255, 255);
+  delay(3000);
+
+  controller.allOff();
+  delay(10);
+  
+  // Pump
+  rain();
+  delay(5000);
+
+  storm(10);
+
+  lights.fadeInto(255,255,255,500);
+}

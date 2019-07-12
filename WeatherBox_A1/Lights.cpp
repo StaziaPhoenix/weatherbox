@@ -12,11 +12,7 @@ class Lights {
   
   public:
 
-    Lights () {
-//      redWrite(redAt);
-//      greenWrite(greenAt);
-//      blueWrite(blueAt);
-    }
+    Lights () {}
 
     void redWrite(int val) {
       if (val < 256 && val > 0) {
@@ -179,7 +175,7 @@ class Lights {
       }
     }
 
-    void on(int redV, int greenV, int blueV) {
+    void on(byte redV, byte greenV, byte blueV) {
 
       redV = 255 - redV;
       greenV = 255 - greenV;
@@ -196,7 +192,7 @@ class Lights {
       analogWrite(blue,255);
     }
 
-    void flash(int r, int g, int b) {
+    void flash(byte r, byte g, byte b) {
       redWrite(r);
       greenWrite(g);
       blueWrite(b);
